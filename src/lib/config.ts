@@ -20,6 +20,15 @@ export const monadTestnet = defineChain({
   },
 });
 
+export const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ||
+  "0x0000000000000000000000000000000000000000") as `0x${string}`;
+
+export const getExplorerTxUrl = (txHash?: string) =>
+  txHash ? `https://testnet.monadexplorer.com/tx/${txHash}` : "#";
+
+export const getExplorerAddressUrl = (address?: string) =>
+  address ? `https://testnet.monadexplorer.com/address/${address}` : "#";
+
 export const config = createConfig({
   chains: [monadTestnet],
   connectors: [

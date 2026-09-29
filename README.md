@@ -1,64 +1,146 @@
-# Web3SkillBuildz 🚀
+# SECURE BOUNTY ESCROW 🛡️⚡
 
-A modern Web3 decentralized application built with Next.js 14, Tailwind CSS, Wagmi v2, Viem, and Hardhat v2, specifically configured for the **Monad Testnet**.
+An on-chain escrow platform for security bounties on the **Monad Testnet**. Organizations lock rewards in the `BountyEscrow` smart contract, researchers submit cryptographic vulnerability proofs, and approved findings release native MON directly to the researcher with zero intermediaries.
 
-## ⚠️ Important Installation Rules 
+---
 
-Web3 tooling dependencies can be extremely sensitive to version mismatches (especially between ESM/CommonJS and Hardhat versions). **Follow these exact rules to avoid breaking the app:**
+## ⚡ Core Architecture
 
-### 1. Hardhat Versions (CRITICAL)
-This project uses **Hardhat v2** (specifically `^2.28.0`). 
-Do **NOT** update to Hardhat v3 or install `@nomicfoundation/hardhat-toolbox@latest`. If you do, you will encounter ESM/CommonJS peer dependency conflicts, and the `hardhat.config.ts` will throw `HH19` and `HH13` errors.
-
-If you ever need to reinstall dependencies, you must use the exact `hh2` tag for the toolbox:
-```bash
-npm install --save-dev hardhat@^2.28.0 "@nomicfoundation/hardhat-toolbox@hh2"
-```
-*(Also ensure `"type": "module"` is **not** present in your `package.json`!)*
-
-### 2. Wagmi and MetaMask
-This project explicitly uses the `metaMask()` connector from `@wagmi/connectors`. It does **not** use the generic `injected()` connector. 
-If you get a "Cannot find module '@metamask/connect-evm'" error, ensure you install it:
-```bash
-npm install @metamask/connect-evm
+```text
+User (Organization / Security Researcher)
+  ↓
+Next.js 16 + React 19 Frontend (Tailwind CSS Cyberpunk / Glitch UI)
+  ↓
+wagmi v2 + viem
+  ↓
+MetaMask (Monad Testnet Chain ID: 10143)
+  ↓
+Signed Transaction
+  ↓
+Monad Testnet
+  ↓
+BountyEscrow.sol
+  ↓
+Locked Native MON Escrow
 ```
 
 ---
 
-## 🛠️ Local Development Setup
+## 🛠️ Tech Stack
 
-### 1. Install Dependencies
+- **Framework**: Next.js 16 (App Router, Turbopack)
+- **Language**: TypeScript (Strict typing)
+- **Smart Contracts**: Solidity 0.8.28, Hardhat v2 (`^2.29.1`)
+- **Web3 Libraries**: Wagmi v3 / v2, Viem v2, `@metamask/connect-evm`
+- **Network**: Monad Testnet (Chain ID: 10143)
+- **Styling**: Cyberpunk / Glitch Design System (Chamfered polygons, scanlines, neon green/magenta/cyan, terminal telemetry)
+
+---
+
+## 📜 Smart Contract: `BountyEscrow.sol`
+
+Located at [`contracts/BountyEscrow.sol`](file:///c:/Web3-SkillBuildZ/contracts/BountyEscrow.sol):
+
+- `createBounty(string title, uint8 severity, bytes32 detailsHash)` payable:
+  - Locks exact `msg.value` MON in smart contract escrow
+  - Enforces `msg.value > 0`, non-empty title, valid severity (1-4)
+- `submitFinding(uint256 bountyId, bytes32 reportHash)`:
+  - Anchors cryptographic hash of the finding
+  - Prevents creator self-submissions
+  - Zero-knowledge confidentiality: raw exploit payloads are **never** stored on public chain
+- `approveFinding(uint256 bountyId)` nonReentrant:
+  - Creator only
+  - Transfers exact escrowed MON to the researcher
+  - Marks status as `PAID` with double-payout protection
+- `rejectFinding(uint256 bountyId)`:
+  - Creator only
+  - Rejects finding and reopens the bounty for revised submissions
+- `cancelBounty(uint256 bountyId)` nonReentrant:
+  - Creator only
+  - Blocked if a submission is pending review
+  - Refunds the locked reward back to the creator
+
+---
+
+## 🧪 Testing
+
+Comprehensive test suite with 17 unit tests in [`test/BountyEscrow.ts`](file:///c:/Web3-SkillBuildZ/test/BountyEscrow.ts):
+
 ```bash
-npm install
+npx hardhat test
 ```
 
-### 2. Environment Variables
-Create a `.env` file in the root of the project:
+### Covered Test Matrix:
+1. Bounty creation & exact reward escrow
+2. Zero-value rejection
+3. Empty title & invalid severity rejection
+4. Researcher finding submission & event emission
+5. Creator self-submission prevention
+6. Duplicate pending submission rejection
+7. Approval & exact native MON payout transfer
+8. Double payout protection
+9. Finding rejection & state reset
+10. Reopening after rejection
+11. Bounty cancellation & full refund
+12. Pending submission blocks cancellation
+13. Unauthorized approval revert
+14. Unauthorized cancellation revert
+15. Unauthorized rejection revert
+16. Reuse prevention on paid bounties
+17. Reuse prevention on cancelled bounties
+
+---
+
+## 🚀 Deployment to Monad Testnet
+
+1. Configure environment variables in `.env`:
 ```env
-# Your EVM Wallet Private Key (for deploying contracts)
-PRIVATE_KEY=your_private_key_here
-
-# The deployed smart contract address to show on the frontend
-NEXT_PUBLIC_CONTRACT_ADDRESS=your_contract_address_here
+DEPLOYER_PRIVATE_KEY=your_private_key_here
+MONAD_TESTNET_RPC_URL=https://testnet-rpc.monad.xyz
+NEXT_PUBLIC_CONTRACT_ADDRESS=
+NEXT_PUBLIC_MONAD_CHAIN_ID=10143
+NEXT_PUBLIC_MONAD_EXPLORER_URL=https://testnet.monadexplorer.com
 ```
 
-### 3. Smart Contract Deployment (Monad Testnet)
-Compile and deploy the `Greeter` smart contract to the Monad Testnet using Hardhat Ignition:
+2. Compile contracts:
 ```bash
 npx hardhat compile
-npx hardhat ignition deploy ignition/modules/Greeter.ts --network monadTestnet
 ```
-*Note: Make sure the wallet corresponding to your PRIVATE_KEY has testnet MON tokens to pay for gas!*
 
-After deploying, copy the deployed contract address into your `.env` file as `NEXT_PUBLIC_CONTRACT_ADDRESS`.
+3. Deploy to Monad Testnet:
+```bash
+npx hardhat run scripts/deploy.ts --network monadTestnet
+```
 
-### 4. Start the Frontend
-If you updated the `.env` file while the server was running, you **must** restart it for Next.js to detect the new variables:
+4. Set the returned contract address in your `.env`:
+```env
+NEXT_PUBLIC_CONTRACT_ADDRESS=0x...
+```
+
+---
+
+## 💻 Running the Frontend
+
+Start the development server:
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) to view the application. 
 
-### 🦊 Troubleshooting MetaMask Connections
-- **"Switch to Testnet First"**: If the UI asks you to switch networks, it means your MetaMask is connected to a different network like Monad Mainnet (Chain ID 143) instead of Monad Testnet (Chain ID 10143). Click the button to automatically switch.
-- **"Failed to fetch" warnings in console**: Testnet RPCs are frequently rate-limited. The app is configured with multiple fallback RPCs (`testnet-rpc.monadinfra.com`, `rpc.ankr.com/monad_testnet`), so Wagmi will automatically handle retries in the background.
+Build production bundle:
+```bash
+npm run build
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+## 🎬 3-Minute Demo Journey
+
+1. **Connect Sponsor Wallet**: Connect MetaMask on Monad Testnet.
+2. **Create Bounty**: Enter title `AUTH BYPASS IN PAYMENT API`, severity `CRITICAL`, reward `25 MON`.
+3. **Escrow Lock**: Sign transaction; verify MON is locked in escrow contract.
+4. **Switch to Researcher Wallet**: Switch account in MetaMask.
+5. **Submit Finding**: Submit exploit proof (client hashes payload to `bytes32` Keccak-256 and anchors it on-chain).
+6. **Switch to Sponsor Wallet**: Open **Sponsor Dashboard**, view pending finding hash.
+7. **Approve & Pay**: Click **APPROVE & PAY**; verify transaction mines and 25 MON is released on Monad Explorer!

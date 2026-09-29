@@ -4,12 +4,22 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
+const privateKey = process.env.DEPLOYER_PRIVATE_KEY || process.env.PRIVATE_KEY;
+
 const config: HardhatUserConfig = {
-  solidity: "0.8.28",
+  solidity: {
+    version: "0.8.28",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+    },
+  },
   networks: {
     monadTestnet: {
-      url: "https://testnet-rpc.monad.xyz",
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      url: process.env.MONAD_TESTNET_RPC_URL || "https://testnet-rpc.monad.xyz",
+      accounts: privateKey ? [privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`] : [],
       chainId: 10143,
     },
   },
